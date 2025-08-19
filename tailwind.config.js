@@ -1,0 +1,1 @@
+export default { darkMode:'class', content:['./index.html','./src/**/*.{vue,js,ts}'], theme:{ extend:{ colors:{ gold:'#E8B525', darkblue:'#0D213F', cream:'#F5F1EA', brand:'#0D213F' }, boxShadow:{ soft:'0 10px 30px rgba(13,33,63,0.12)' } } }, plugins:[] }

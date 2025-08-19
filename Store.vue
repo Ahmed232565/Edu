@@ -1,0 +1,1 @@
+<template><div class='card'>Store demo</div></template>

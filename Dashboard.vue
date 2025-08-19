@@ -1,0 +1,1 @@
+<template><div class='card'>Supervisor dashboard demo</div></template>

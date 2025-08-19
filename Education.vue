@@ -1,0 +1,1 @@
+<template><div class='card'>Education demo</div></template>
