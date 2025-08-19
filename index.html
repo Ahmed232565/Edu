@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="ar" class="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EduMasr — EduVision</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <link rel="icon" href="assets/logo-light.png" />
+</head>
+<body>
+  <div id="app"></div>
+
+  <!-- Vue 3 + Router via CDN -->
+  <script type="module">
+    import { createApp, ref, computed, reactive, onMounted } from 'https://unpkg.com/vue@3/dist/vue.esm-browser.js';
+    import { createRouter, createWebHashHistory } from 'https://unpkg.com/vue-router@4/dist/vue-router.esm-browser.js';
+
+    // ---- Theme handling ----
+    const THEME_KEY = 'edumasr-theme';
+    const getPref = () => localStorage.getItem(THEME_KEY) || 'light';
+    const applyTheme = (t) => {
+      document.documentElement.classList.toggle('dark', t === 'dark');
+      const logoEl = document.querySelector('#brand-logo');
+      if (logoEl) logoEl.src = t === 'dark' ? 'assets/logo-dark.png' : 'assets/logo-light.png';
+    };
+
+    // ---- Auth mock (localStorage) ----
+    const AUTH_KEY = 'edumasr-auth';
+    const db = {
+      users: JSON.parse(localStorage.getItem('edumasr-users')||'[]')
+    };
+    const saveUsers = () => localStorage.setItem('edumasr-users', JSON.stringify(db.users));
+
+    function register(user){
+      db.users.push(user);
+      saveUsers();
+      localStorage.setItem(AUTH_KEY, JSON.stringify({role: user.role, name:user.name}));
+      return true;
+    }
+    function login(creds){
+      const u = db.users.find(u => (u.email === creds.email || u.phone === creds.phone) && u.password === creds.password && u.role === creds.role);
+      if (!u) return false;
+      localStorage.setItem(AUTH_KEY, JSON.stringify({role: u.role, name:u.name}));
+      return true;
+    }
+    function getSession(){ try { return JSON.parse(localStorage.getItem(AUTH_KEY)); } catch(e){ return null; } }
+    function logout(){ localStorage.removeItem(AUTH_KEY); }
+
+    // ---- Pages ----
+    const Home = { 
+      template: `
+      <div class="container">
+        <section class="hero">
+          <div>
+            <div class="badge">اسم الفريق: <strong>EduVision</strong></div>
+            <h2 style="margin-top:10px">منصّة <span style="color:var(--gold)">EduMasr</span> — تطوير التعليم في مصر بالذكاء الاصطناعي</h2>
+            <p>مشروع <strong>EduMasr</strong> هو نظام مساعد متكامل يهدف إلى تطوير التعليم في مصر من خلال حلول مبتكرة تعتمد على البرمجة والذكاء الاصطناعي.</p>
+            <div class="card notice">
+              <ul>
+                <li>تصنيف وتقويم المدارس بمعايير عالمية</li>
+                <li>رقابة إدارية داعمة لوزارة التربية والتعليم</li>
+                <li>منصّة مستلزمات دراسية ومتجر إلكتروني</li>
+                <li>تتبّع الباصات عبر GPS</li>
+                <li>منصّة تعليمية للتعلّم عن بُعد</li>
+                <li>منصّة وظائف/تدريب صيفي/تطوعي</li>
+              </ul>
+            </div>
+          </div>
+          <div class="visual">
+            <img id="hero-logo" src="assets/logo-light.png" alt="EduMasr Logo">
+          </div>
+        </section>
+
+        <section style="margin-top:24px" class="grid cols-3">
+          <div class="card">
+            <h3>المستخدمون</h3>
+            <p class="kicker">مشرفون / طلاب / معلّمون / أولياء أمور / أصحاب أعمال</p>
+          </div>
+          <div class="card">
+            <h3>الواجهة الأمامية</h3>
+            <p>HTML, CSS, JavaScript, Vue 3 — واجهة مرنة سريعة الاستجابة.</p>
+          </div>
+          <div class="card">
+            <h3>الواجهة الخلفية</h3>
+            <p>Python + SQL (مخطط) — لمعالجة البيانات وإدارة المستخدمين والمعاملات.</p>
+          </div>
+        </section>
+      </div>`
+    };
+
+    const Schools = {
+      data(){ return { q:'', schools:[
+        {name:'مدرسة الأمل', governorate:'القاهرة', rating:4.7},
+        {name:'مدرسة النور', governorate:'الجيزة', rating:4.4},
+        {name:'مدرسة المستقبل', governorate:'الإسكندرية', rating:4.9},
+        {name:'مدرسة الحرية', governorate:'الشرقية', rating:4.2},
+      ] } },
+      computed:{
+        filtered(){
+          const q = this.q.trim();
+          return this.schools.filter(s=> !q || s.name.includes(q) || s.governorate.includes(q));
+        }
+      },
+      template:`
+      <div class="container">
+        <div class="row">
+          <input class="input" v-model="q" placeholder="ابحث باسم المدرسة أو المحافظة">
+        </div>
+        <table class="table">
+          <thead><tr><th>المدرسة</th><th>المحافظة</th><th>التقييم</th></tr></thead>
+          <tbody>
+            <tr v-for="s in filtered" :key="s.name" class="card">
+              <td>{{s.name}}</td><td>{{s.governorate}}</td><td><span class="tag">⭐ {{s.rating}}</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>`
+    };
+
+    const Buses = {
+      data(){ return { buses:[
+        {id:'B-101', route:'القاهرة ↔ الجيزة', status:'في الطريق', eta:'10 د'},
+        {id:'B-205', route:'العباسية ↔ مدينة نصر', status:'متوقف', eta:'—'},
+        {id:'B-330', route:'الهرم ↔ الدقي', status:'في الطريق', eta:'22 د'},
+      ] } },
+      template:`
+      <div class="container">
+        <div class="card notice"><strong>تنبيه:</strong> عرض الخريطة الحقيقي يتكامل مع GPS في النسخة الإنتاجية.</div>
+        <div class="grid cols-3" style="margin-top:16px">
+          <div class="card" v-for="b in buses" :key="b.id">
+            <div class="row"><div class="badge">رقم الباص: {{b.id}}</div><div class="tag">{{b.status}}</div></div>
+            <p class="kicker">المسار: {{b.route}}</p>
+            <p>ETA: {{b.eta}}</p>
+            <button class="btn">عرض على الخريطة</button>
+          </div>
+        </div>
+      </div>`
+    };
+
+    const Store = {
+      data(){ return { items:[
+        {name:'دفتر 80 ورقة', price:25},
+        {name:'أقلام حبر (3)', price:30},
+        {name:'حقيبة مدرسية', price:340},
+        {name:'آلة حاسبة علمية', price:420},
+      ], cart:[] } },
+      computed:{ total(){ return this.cart.reduce((s,i)=>s+i.price,0) } },
+      methods:{
+        add(i){ this.cart.push(i) },
+        remove(idx){ this.cart.splice(idx,1) }
+      },
+      template:`
+      <div class="container grid cols-2">
+        <div>
+          <h3>متجر المستلزمات</h3>
+          <div class="grid cols-2">
+            <div class="card" v-for="i in items" :key="i.name">
+              <h4>{{i.name}}</h4>
+              <p class="kicker">{{i.price}} ج.م</p>
+              <button class="btn primary" @click="add(i)">إضافة</button>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h3>السلة</h3>
+          <div class="card" v-for="(c,idx) in cart" :key="idx">
+            <div class="row" style="align-items:center">
+              <div>{{c.name}}</div>
+              <div class="kicker">{{c.price}} ج.م</div>
+              <button class="btn" @click="remove(idx)">حذف</button>
+            </div>
+          </div>
+          <div class="card"><strong>الإجمالي: {{total}} ج.م</strong></div>
+        </div>
+      </div>`
+    };
+
+    const Jobs = {
+      data(){ return { roles:[
+        {title:'تدريب صيفي — تحليل بيانات', org:'شركة بيانات', type:'مدفوع', city:'القاهرة'},
+        {title:'تطوع — دعم مدرسي', org:'جمعية أمل', type:'تطوع', city:'الجيزة'},
+        {title:'دوام جزئي — بائع في مكتبة', org:'مكتبة المعرفة', type:'دوام جزئي', city:'الإسكندرية'},
+      ] } },
+      template:`
+      <div class="container">
+        <div class="grid cols-3">
+          <div class="card" v-for="r in roles" :key="r.title">
+            <div class="badge">{{r.type}}</div>
+            <h4 style="margin:8px 0">{{r.title}}</h4>
+            <p class="kicker">{{r.org}} — {{r.city}}</p>
+            <button class="btn primary">تقديم</button>
+          </div>
+        </div>
+      </div>`
+    };
+
+    const Learn = {
+      template:`
+      <div class="container grid cols-2">
+        <div class="card">
+          <h3>المنصة التعليمية</h3>
+          <p>مقررات مرئية، اختبارات، غرف فصول مباشرة.</p>
+          <button class="btn">دخول الفصول</button>
+        </div>
+        <div class="card">
+          <h3>مكتبة المحتوى</h3>
+          <ul>
+            <li>رياضيات — فيديوهات تفاعلية</li>
+            <li>علوم — تجارب افتراضية</li>
+            <li>لغات — تمارين محادثة</li>
+          </ul>
+        </div>
+      </div>`
+    };
+
+    const Contact = {
+      template:`
+      <div class="container grid cols-2">
+        <div class="card">
+          <h3>تواصل معنا</h3>
+          <div class="row">
+            <input class="input" placeholder="الاسم">
+            <input class="input" placeholder="البريد الإلكتروني">
+          </div>
+          <textarea class="input" rows="6" placeholder="رسالتك"></textarea>
+          <div style="margin-top:10px"><button class="btn primary">إرسال</button></div>
+        </div>
+        <div class="card">
+          <h3>عن EduMasr</h3>
+          <p>حلول تعليمية متكاملة مدعمة بالذكاء الاصطناعي، بإشراف وزارة التربية والتعليم.</p>
+        </div>
+      </div>`
+    };
+
+    // ---- Role-aware guard + header ----
+    const routes = [
+      { path:'/', component: Home, name:'الرئيسية' },
+      { path:'/schools', component: Schools, name:'المدارس' },
+      { path:'/buses', component: Buses, name:'الباصات' },
+      { path:'/store', component: Store, name:'متجر المستلزمات' },
+      { path:'/jobs', component: Jobs, name:'منصة التوظيف' },
+      { path:'/learn', component: Learn, name:'المنصة التعليمية' },
+      { path:'/contact', component: Contact, name:'تواصل معنا' },
+    ];
+    const router = createRouter({ history: createWebHashHistory(), routes });
+
+    const App = {
+      setup(){
+        const theme = ref(getPref());
+        onMounted(()=>applyTheme(theme.value));
+        const session = ref(getSession());
+        const role = computed(()=>session.value?.role || null);
+
+        function toggleTheme(){
+          theme.value = theme.value === 'light' ? 'dark' : 'light';
+          localStorage.setItem(THEME_KEY, theme.value);
+          applyTheme(theme.value);
+          document.querySelector('#hero-logo')?.setAttribute('src', theme.value==='dark' ? 'assets/logo-dark.png':'assets/logo-light.png');
+        }
+
+        // Auth modal state
+        const showAuth = ref(false);
+        const authMode = ref('login'); // 'login' | 'signup'
+        const form = reactive({ role:'student', name:'', email:'', phone:'', password:'', idPhoto:'', studentSSN:'' });
+
+        function doLogin(){
+          const ok = login({ email:form.email, phone:form.phone, password:form.password, role:form.role });
+          if(!ok) return alert('بيانات غير صحيحة');
+          session.value = getSession(); showAuth.value=false;
+        }
+        function doSignup(){
+          if(form.role==='parent' && !form.studentSSN) return alert('رقم قومي/اجتماعي للطالب مطلوب');
+          register({ ...form });
+          session.value = getSession(); showAuth.value=false;
+        }
+        function doLogout(){ logout(); session.value=null; }
+
+        const menu = computed(()=>{
+          // Role based visibility
+          const base = [
+            {to:'/', text:'الرئيسية'},
+            {to:'/schools', text:'المدارس'},
+            {to:'/buses', text:'الباصات'},
+            {to:'/store', text:'متجر المستلزمات'},
+            {to:'/learn', text:'المنصة التعليمية'},
+            {to:'/contact', text:'تواصل معنا'},
+          ];
+          if(role.value==='student') base.splice(4,0,{to:'/jobs', text:'منصة التوظيف'});
+          if(role.value==='parent'){} // same as student but without jobs
+          if(role.value==='supervisor'){ base.splice(3,0,{to:'/jobs', text:'شبكة المشرفين'}); }
+          return base;
+        });
+
+        return { theme, toggleTheme, showAuth, authMode, form, doLogin, doSignup, session, doLogout, menu, role };
+      },
+      template: `
+      <div>
+        <header class="header">
+          <div class="header-inner container">
+            <div class="brand">
+              <img id="brand-logo" src="assets/logo-light.png" alt="logo" />
+              <h1>EduMasr</h1>
+            </div>
+            <nav class="nav">
+              <router-link v-for="m in menu" :key="m.to" :to="m.to">{{m.text}}</router-link>
+            </nav>
+            <div class="actions">
+              <button class="btn ghost" @click="toggleTheme">{{ theme==='dark'?'وضع فاتح':'وضع داكن' }}</button>
+              <template v-if="session">
+                <span class="badge">مرحبًا {{session.name}} — {{role==='student'?'طالب': role==='parent'?'ولي أمر': 'مشرف'}}</span>
+                <button class="btn" @click="doLogout">تسجيل الخروج</button>
+              </template>
+              <template v-else>
+                <button class="btn" @click="showAuth=true">دخول / تسجيل</button>
+              </template>
+            </div>
+          </div>
+        </header>
+
+        <router-view></router-view>
+
+        <footer class="container">
+          <div class="row">
+            <div class="card"><strong>EduVision — EduMasr</strong><p class="kicker">© 2025</p></div>
+            <div class="card"><span class="kicker">ألوان الهوية</span><div style="display:flex;gap:8px;margin-top:8px">
+              <span class="tag">Gold #E8B525</span>
+              <span class="tag">Dark Blue #0D213F</span>
+              <span class="tag">White #F5F1EA</span>
+            </div></div>
+          </div>
+        </footer>
+
+        <!-- Auth Modal -->
+        <div v-if="showAuth" style="position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:center">
+          <div class="card" style="width:min(95vw,720px)">
+            <div class="row">
+              <button class="btn" :class="{primary:authMode==='login'}" @click="authMode='login'">تسجيل الدخول</button>
+              <button class="btn" :class="{primary:authMode==='signup'}" @click="authMode='signup'">إنشاء حساب</button>
+              <button class="btn ghost" @click="showAuth=false">إغلاق</button>
+            </div>
+            <div class="row" style="margin-top:12px">
+              <label class="kicker">الفئة</label>
+              <select v-model="form.role">
+                <option value="student">طالب (15+)</option>
+                <option value="parent">ولي أمر (لمن هم دون 15)</option>
+                <option value="supervisor">مشرف وزارة</option>
+              </select>
+            </div>
+            <div class="grid cols-2" style="margin-top:12px">
+              <input class="input" v-model="form.name" placeholder="الاسم الكامل">
+              <input class="input" v-model="form.email" placeholder="البريد الإلكتروني">
+              <input class="input" v-model="form.phone" placeholder="رقم الهاتف">
+              <input class="input" v-model="form.password" placeholder="كلمة المرور" type="password">
+              <input class="input" v-model="form.idPhoto" placeholder="رابط صورة الهوية / شهادة الميلاد">
+              <input v-if="form.role==='parent'" class="input" v-model="form.studentSSN" placeholder="الرقم القومي/الاجتماعي للطالب">
+            </div>
+            <div class="row" style="margin-top:12px;justify-content:flex-end">
+              <button class="btn primary" v-if="authMode==='signup'" @click="doSignup">تسجيل</button>
+              <button class="btn primary" v-else @click="doLogin">دخول</button>
+            </div>
+            <p class="kicker">* في الإنتاج: يتم التحقق من البيانات من وزارة التربية والتعليم وربط حساب الولي إذا كان الطالب دون 15 عامًا.</p>
+          </div>
+        </div>
+      </div>`
+    };
+
+    const app = createApp(App);
+    app.use(router);
+    app.mount('#app');
+  </script>
+</body>
+</html>
